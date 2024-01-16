@@ -1,0 +1,235 @@
+#Pregunta 1
+#---------------------------------------------
+#Abrimos archivo variables.csv y lo nombramos como var_df
+var_df <- read.csv("C:\\Users\\usuario\\Documents\\4. UOC\\1º Álgebra Lineal\\Reto 4\\variables.csv")
+
+#Imprimimos archivo para ver su contenido
+fix(var_df)
+var_df
+
+#Comprobamos que var_df es de tipo dataframe
+class(var_df)
+
+#Eliminamos la primera columna llamada 'id'. Para ello vamos a usar el paquete "dplyr"
+library(dplyr)
+var_df <- select(var_df, -id)
+
+#Comprobamos que realmente se ha eliminado la columna
+fix(var_df)
+var_df
+
+#Convertimos el vector var_df en una matriz
+var_matrix <- as.matrix(var_df)
+
+#Comprobamos que ahora el vector var_df es una matriz
+class(var_matrix)
+
+#Buscamos la dimensión que tiene la matriz, y podemos observar que nos devuelve
+# 61, 12, es decir, contamos con 61 observaciones que coinciden con el número de 
+#secciones censales, y 12 columnas que coinciden con el número de variables:
+dim(var_matrix)
+
+#-----------------------------------------------------
+#Pregunta 2
+#-----------------------------------------------------
+
+#En este intento, la variable V es igual a la variable 'gini'. Para calcular
+#la razón de 'gini' vamos a detectar los valores máximo y mínimo de la variable.
+
+#Asignamos al vector V la columna 'gini' de la matriz var_df
+V <- var_matrix[,7]
+V
+#Definimos máximo como el valor máximo de V, y definimos el mínimo 
+#como el valor mínimo de V
+maximo <- max(V)
+minimo <- min(V)
+maximo
+minimo
+
+#Calculamos la razón entre el valor Máximo y el valor Mínimo de V (M/m)
+razon <- maximo/minimo 
+razon
+#Redondeamos resultado a dos decimales
+round(razon, digits=2)
+
+#-------------------------------------
+#Pregunta 3
+#--------------------------------------
+
+#Calculamos la matriz de datos normalizada y la guardamos en la variable Xs
+Xs <- as.matrix(scale(var_matrix, center = TRUE, scale = TRUE))
+Xs
+
+#Comprobamos que realmente el valor de la media de los datos de Xs es  
+#prácticamente cero y el valor de la desviación típica prácticamente 1.
+mean(Xs)
+sd(Xs)
+round(mean(Xs), digits = 0)
+round(sd(Xs), digits = 0)
+
+#Ahora vamos a calcular la matriz de covarianza de los datos Xs y la vamos a
+#guardar en la variable CXs.
+CXs <- cov(Xs)
+CXs
+
+#Visualizamos la matriz como una imagen y la guardamos en formato .jpeg
+image(CXs)
+jpeg('CXs.jpeg')
+image(CXs)
+dev.off()
+
+#Buscamos el nombre (índice) de las variables que contienen el mayor y menor 
+#valor absoluto de covarianza.
+#Primero mostramos la matriz CXs en valores absolutos
+
+CXs_ab <- abs(CXs)
+CXs_ab
+
+image(CXs_ab)
+jpeg('CXs_ab.jpeg')
+image(CXs_ab)
+dev.off()
+
+#Mostramos el par de valores máximo y mínimo de los valores absolutos de la 
+#matriz CXs_ab.
+par_max = tail(sort(CXs_ab), 2)
+par_min = head(sort(CXs_ab), 2)
+par_max
+par_min
+
+#Viendo un resumen de los datos podemos observar que el valor máximo puede
+#corresponder a cualquier variable, ya que todas comparten como valor máximo
+# 1. Como valor mínimo podemos observar que las variables son inc_non(5) y 
+# per_ret(11)
+summary(CXs_ab)
+
+#Comprobamos que efectivamente los datos de maximo concuerdan con las variables 
+# 1 y 2, y los datos de mínimo con 5 y 11
+CXs_ab[1,1]
+CXs_ab[2,2]
+CXs_ab[11,5]
+CXs_ab[5,11]
+
+#------------------------------------
+#Pregunta 4
+#--------------------------------
+
+#Calculamos lo componentes principales de la matriz de datos normalizada Xs
+comp_prin <- prcomp(Xs, scale = TRUE, center = TRUE)
+comp_prin
+
+#Comprobamos que la media es prácticamente cero y la varianza uno
+comp_prin$center
+comp_prin$scale
+comp_prin$sdev^2
+#Ahora dibujamos la distribución de la varianza explicada en porcentaje (eje
+#de ordenadas) para cada componente principal (eje de abcisas) respecto a la 
+#varianza total de los datos.
+
+
+#Calculamos el % de cada valor respecto al total
+porc_varianza <- abs(comp_prin$sdev^2)*100/sum(abs(comp_prin$sdev^2))
+porc_varianza
+
+#Importamos paquete ggplot2 con el que vamos a generar la gráfica.
+library(ggplot2)
+library(crayon)
+ggplot(data = data.frame(porc_varianza, pc = 1:12), 
+       aes(x = pc, y = porc_varianza)) + geom_col(width = 0.5) +  
+  geom_text(aes(label = round(porc_varianza, digits = 2)), vjust = -1, 
+            colour = "black") + ylim(c(0, 100)) + 
+  scale_x_continuous(breaks = seq(1, 12, by = 1)) +
+  scale_y_continuous(breaks = seq(0, 60, by = 5)) +
+  labs(x = "Componente principal", 
+       y = "Porcentaje % de varianza respecto al total")
+
+#------------------------------------
+#Pregunta 5
+#--------------------------------
+
+#Calculamos la variabilidad acumuladada de las variables originales y de las 
+#componentes principales
+library(data.table)
+variabilidad_org = 100/12
+variabilidad_org
+com_principales <- round(porc_varianza, digits = 2)
+variabilidad_cp = data.frame(variables = 1:12, com_principales, 
+                             variabilidad_org )
+dt <- as.data.table(variabilidad_cp)
+dt[, acumulado_com.prin:= cumsum(com_principales)]
+dt[,acumulado_original := cumsum(variabilidad_org)]
+dt 
+#Podemos observar en la columna acumulado_com.prin que necesitamos como 
+#mínimo de 3 componentes principales para explicar un 75% de la varianza 
+#de nuestros datos
+
+
+#------------------------------------
+#Pregunta 6
+#--------------------------------
+
+#Obtenemos la carga de cada variable en la componente principal C = 1 y las
+#ordenamos en valores absolutos para detectar el valor máximo y el valor mínimo.
+
+loadings_cpC1 <- comp_prin$rotation[,1]
+loadings_cpC1_abs <- abs(loadings_cpC1)
+loadings_cpC1_ordmax <- sort(loadings_cpC1_abs, decreasing = TRUE)
+loadings_cpC1_ordmin <- sort(loadings_cpC1_abs, decreasing = FALSE)
+loadings_cpC1_ordmax[0:1]
+loadings_cpC1_ordmin[0:1] 
+
+#Comprobamos que sus posiciones son 3 y 8 respectivamente
+loadings_cpC1[3:3]
+loadings_cpC1[8:8]
+
+#------------------------------------
+#Pregunta 7
+#--------------------------------
+
+# Cálculo de las nuevas variables proyectadas
+
+nuevas_vars <- predict(comp_prin, newdata = Xs)
+nuevas_vars
+#También podríamos calcularlas así
+comp_prin$x
+
+#Calculamos valores máximos y mínimos en C = 1.
+max <- max(abs(nuevas_vars[,1]))
+min <- min(abs(nuevas_vars[,1]))
+max
+min
+
+
+#localizamos indice de los valores maximo y minimos de C = 1
+
+ord <- sort(abs(nuevas_vars[,1]), decreasing = FALSE)
+ord
+#comprobamos que el id 44 coincide con min y que el id 5 coincide con max
+nuevas_vars[44]
+nuevas_vars[5]
+
+
+#------------------------------------
+#Pregunta 8
+#--------------------------------
+
+#Tomamos solo las tres primeras componentes principales
+L <- comp_prin$x[, 1:3]
+L
+
+#Calculamos los datos originales con pérdida de información
+
+dtorg_lossinf <- nuevas_vars[,1:3]%*%t(L)
+org_lossinf
+
+#Calculamos el error residual
+Error_res <- Xs[, 1:3] - dtorg_lossinf[,1:3]
+Error_res <- as.matrix(Error_res)
+Error_res
+#Calculamos la desviación típica del error residual.
+sd(Error_res)
+round(sd(Error_res), digits = 2)
+
+
+
+
